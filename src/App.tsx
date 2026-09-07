@@ -207,7 +207,7 @@ const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
   <span className="hero-caption">
     Made like home
     <br />
-    <small>Delhi · Est. 2021</small>
+    <small>Noida · Est. 2021</small>
   </span>
 
   <span className="hero-stamp">
