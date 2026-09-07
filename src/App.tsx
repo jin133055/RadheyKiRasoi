@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import './App.css'
 import logo from './assets/logo.webp'
 import parathaHero from './assets/homepage.webp'
@@ -29,18 +29,37 @@ const cravingOptions = [
 function App() {
   const [page, setPage] = useState<'home' | 'menu' | 'contact'>('home')
   const [craving, setCraving] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const goTo = (nextPage: 'home' | 'menu' | 'contact') => {
     setPage(nextPage)
+    setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    document.body.classList.toggle('menu-is-open', menuOpen)
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.body.classList.remove('menu-is-open')
+    }
+  }, [menuOpen])
 const carouselRef = useRef<HTMLDivElement>(null)
 
 const isDragging = useRef(false)
 const startX = useRef(0)
 const startScrollLeft = useRef(0)
+const autoScrollPosition = useRef(0)
 
 useEffect(() => {
+  if (page !== 'home') return
+
   const carousel = carouselRef.current
 
   if (!carousel) return
@@ -48,20 +67,27 @@ useEffect(() => {
   let animationFrame: number
   let lastTime = performance.now()
 
-  const speed = 35 // pixels per second
+  const speed = 28
+  autoScrollPosition.current = carousel.scrollLeft
 
   const autoScroll = (time: number) => {
     const deltaTime = time - lastTime
     lastTime = time
 
     if (!isDragging.current) {
-      carousel.scrollLeft += (speed * deltaTime) / 1000
+      const maxScroll = carousel.scrollWidth - carousel.clientWidth
 
-      const maxScroll =
-        carousel.scrollWidth - carousel.clientWidth
+      if (maxScroll <= 0) {
+        animationFrame = requestAnimationFrame(autoScroll)
+        return
+      }
 
-      if (carousel.scrollLeft >= maxScroll - 1) {
-        carousel.scrollLeft = 0
+      autoScrollPosition.current += (speed * deltaTime) / 1000
+
+      if (autoScrollPosition.current >= maxScroll) {
+        autoScrollPosition.current = 0
+      } else {
+        carousel.scrollLeft = Math.floor(autoScrollPosition.current)
       }
     }
 
@@ -73,25 +99,23 @@ useEffect(() => {
   return () => {
     cancelAnimationFrame(animationFrame)
   }
-}, [])
-const handleMouseDown = (
-  e: React.MouseEvent<HTMLDivElement>
-) => {
+}, [page])
+const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
   const carousel = carouselRef.current
 
   if (!carousel) return
 
   isDragging.current = true
 
-  startX.current = e.pageX
+  startX.current = e.clientX
   startScrollLeft.current = carousel.scrollLeft
+  autoScrollPosition.current = carousel.scrollLeft
 
+  carousel.setPointerCapture(e.pointerId)
   carousel.classList.add('is-dragging')
 }
 
-const handleMouseMove = (
-  e: React.MouseEvent<HTMLDivElement>
-) => {
+const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
   if (!isDragging.current) return
 
   const carousel = carouselRef.current
@@ -100,16 +124,25 @@ const handleMouseMove = (
 
   e.preventDefault()
 
-  const x = e.pageX
+  const x = e.clientX
   const walk = (x - startX.current) * 1.5
 
   carousel.scrollLeft = startScrollLeft.current - walk
+  autoScrollPosition.current = carousel.scrollLeft
 }
 
-const handleMouseUp = () => {
+const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
   isDragging.current = false
 
-  carouselRef.current?.classList.remove('is-dragging')
+  const carousel = carouselRef.current
+
+  if (!carousel) return
+
+  if (carousel.hasPointerCapture(e.pointerId)) {
+    carousel.releasePointerCapture(e.pointerId)
+  }
+
+  carousel.classList.remove('is-dragging')
 }
   return (
     <main className="site-shell">
@@ -130,7 +163,7 @@ const handleMouseUp = () => {
     <em>Rasoi</em>
   </span>
 </button>
-        <nav aria-label="Main navigation">
+        <nav className={menuOpen ? 'is-open' : ''} aria-label="Main navigation">
           <button className={page === 'home' ? 'active' : ''} onClick={() => goTo('home')}>Home</button>
           <button className={page === 'menu' ? 'active' : ''} onClick={() => goTo('menu')}>Menu</button>
           <button className={page === 'contact' ? 'active' : ''} onClick={() => goTo('contact')}>Contact</button>
@@ -141,6 +174,16 @@ const handleMouseUp = () => {
 >
   Order Food <span>↗</span>
 </button>
+        <button
+          className={`menu-toggle ${menuOpen ? 'is-open' : ''}`}
+          type="button"
+          aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span />
+          <span />
+        </button>
       </header>
 
       {page === 'home' ? (
@@ -195,10 +238,10 @@ const handleMouseUp = () => {
     <div
   className="menu-carousel"
   ref={carouselRef}
-  onMouseDown={handleMouseDown}
-  onMouseMove={handleMouseMove}
-  onMouseUp={handleMouseUp}
-  onMouseLeave={handleMouseUp}
+  onPointerDown={handlePointerDown}
+  onPointerMove={handlePointerMove}
+  onPointerUp={handlePointerUp}
+  onPointerCancel={handlePointerUp}
 >
 
       <article className="menu-category-card vrat" onClick={() => goTo('menu')}>
