@@ -58,7 +58,6 @@ const startScrollLeft = useRef(0)
 const dragMoved = useRef(false)
 const suppressClick = useRef(false)
 
-const animationFrame = useRef<number | null>(null)
 const lastTime = useRef<number>(0)
 const isPaused = useRef(false)
 
