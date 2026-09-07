@@ -55,39 +55,41 @@ const carouselRef = useRef<HTMLDivElement>(null)
 const isDragging = useRef(false)
 const startX = useRef(0)
 const startScrollLeft = useRef(0)
-const autoScrollPosition = useRef(0)
+const dragMoved = useRef(false)
+const suppressClick = useRef(false)
+
+const animationFrame = useRef<number | null>(null)
+const lastTime = useRef<number>(0)
+const isPaused = useRef(false)
 
 useEffect(() => {
   if (page !== 'home') return
 
   const carousel = carouselRef.current
-
   if (!carousel) return
 
   let animationFrame: number
   let lastTime = performance.now()
 
-  const speed = 28
-  autoScrollPosition.current = carousel.scrollLeft
+  const speed = 30 // pixels per second
 
   const autoScroll = (time: number) => {
     const deltaTime = time - lastTime
     lastTime = time
 
-    if (!isDragging.current) {
-      const maxScroll = carousel.scrollWidth - carousel.clientWidth
+    if (!isDragging.current && !isPaused.current) {
+      const maxScroll =
+        carousel.scrollWidth - carousel.clientWidth
 
-      if (maxScroll <= 0) {
-        animationFrame = requestAnimationFrame(autoScroll)
-        return
-      }
+      if (maxScroll > 0) {
+        const movement = (speed * deltaTime) / 1000
 
-      autoScrollPosition.current += (speed * deltaTime) / 1000
+        carousel.scrollLeft += movement
 
-      if (autoScrollPosition.current >= maxScroll) {
-        autoScrollPosition.current = 0
-      } else {
-        carousel.scrollLeft = Math.floor(autoScrollPosition.current)
+        // Restart when reaching the end
+        if (carousel.scrollLeft >= maxScroll - 1) {
+          carousel.scrollLeft = 0
+        }
       }
     }
 
@@ -100,49 +102,83 @@ useEffect(() => {
     cancelAnimationFrame(animationFrame)
   }
 }, [page])
-const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-  const carousel = carouselRef.current
 
+
+const handlePointerDown = (
+  e: ReactPointerEvent<HTMLDivElement>
+) => {
+  const carousel = carouselRef.current
   if (!carousel) return
 
   isDragging.current = true
+  isPaused.current = true
+  dragMoved.current = false
 
   startX.current = e.clientX
   startScrollLeft.current = carousel.scrollLeft
-  autoScrollPosition.current = carousel.scrollLeft
 
   carousel.setPointerCapture(e.pointerId)
   carousel.classList.add('is-dragging')
 }
 
-const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+
+const handlePointerMove = (
+  e: ReactPointerEvent<HTMLDivElement>
+) => {
   if (!isDragging.current) return
 
   const carousel = carouselRef.current
-
   if (!carousel) return
 
-  e.preventDefault()
+  const distance = e.clientX - startX.current
 
-  const x = e.clientX
-  const walk = (x - startX.current) * 1.5
+  if (Math.abs(distance) > 5) {
+    dragMoved.current = true
+  }
 
-  carousel.scrollLeft = startScrollLeft.current - walk
-  autoScrollPosition.current = carousel.scrollLeft
+  carousel.scrollLeft = startScrollLeft.current - distance
 }
 
-const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+
+const handlePointerUp = (
+  e: ReactPointerEvent<HTMLDivElement>
+) => {
+  const carousel = carouselRef.current
+  if (!carousel) return
+
   isDragging.current = false
 
-  const carousel = carouselRef.current
+  if (dragMoved.current) {
+    suppressClick.current = true
 
-  if (!carousel) return
+    window.setTimeout(() => {
+      suppressClick.current = false
+    }, 300)
+  }
 
   if (carousel.hasPointerCapture(e.pointerId)) {
     carousel.releasePointerCapture(e.pointerId)
   }
 
   carousel.classList.remove('is-dragging')
+
+  // Resume auto-scroll smoothly
+  window.setTimeout(() => {
+    isPaused.current = false
+    lastTime.current = performance.now()
+  }, 800)
+}
+
+
+const handleCarouselClick = (
+  e: React.MouseEvent<HTMLDivElement>
+) => {
+  if (!suppressClick.current) return
+
+  e.preventDefault()
+  e.stopPropagation()
+
+  suppressClick.current = false
 }
   return (
     <main className="site-shell">
@@ -242,6 +278,7 @@ const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
   onPointerMove={handlePointerMove}
   onPointerUp={handlePointerUp}
   onPointerCancel={handlePointerUp}
+  onClickCapture={handleCarouselClick}
 >
 
       <article className="menu-category-card vrat" onClick={() => goTo('menu')}>

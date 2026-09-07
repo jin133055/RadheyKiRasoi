@@ -1138,48 +1138,36 @@ footer i {
 
 .menu-carousel {
   display: flex;
-  gap: 1.25rem;
-
-  width: 100%;
+  gap: 20px;
 
   overflow-x: auto;
   overflow-y: hidden;
 
-  padding: 1rem 8vw 2rem;
-
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-
   cursor: grab;
-  user-select: none;
-
-  touch-action: pan-y;
 
   scroll-behavior: auto;
 
-  /* Important */
-  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: none;
+
+  user-select: none;
+
+  touch-action: pan-y;
 }
-
-
-/* Hide scrollbar */
 
 .menu-carousel::-webkit-scrollbar {
   display: none;
 }
 
-
-/* ================================
-   DRAGGING STATE
-================================ */
-
 .menu-carousel.is-dragging {
   cursor: grabbing;
+
+  user-select: none;
 }
 
 .menu-carousel.is-dragging * {
-  cursor: grabbing;
-  user-select: none;
+  pointer-events: none;
 }
 
 
@@ -2830,6 +2818,7 @@ body.menu-is-open {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     scroll-snap-type: none;
+    touch-action: pan-x pan-y;
   }
 
   .menu-category-card {
